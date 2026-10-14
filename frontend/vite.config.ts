@@ -13,7 +13,7 @@ export default defineConfig({
   },
   server: {
     allowedHosts: [
-      "7292-103-132-151-109.ngrok-free.app"
+      "1566-103-132-151-108.ngrok-free.app"
     ],
     proxy: {
       '/socket.io': {

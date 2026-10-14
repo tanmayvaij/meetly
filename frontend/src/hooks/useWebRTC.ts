@@ -35,6 +35,7 @@ export function useWebRTC(roomId: string) {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<string>("waiting");
   const [error, setError] = useState<string | null>(null);
+  const [transcriptions, setTranscriptions] = useState<{sender: string, text: string, isFinal?: boolean}[]>([]);
 
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -135,6 +136,10 @@ export function useWebRTC(roomId: string) {
         peerConnectionRef.current = null;
       }
       otherUserIdRef.current = null;
+    });
+
+    socketRef.current.on("transcription", (payload: {sender: string, text: string, isFinal?: boolean}) => {
+      setTranscriptions(prev => [...prev, payload]);
     });
   };
 
@@ -240,11 +245,26 @@ export function useWebRTC(roomId: string) {
     }
   };
 
+  const sendTranscription = (text: string, isFinal: boolean = true) => {
+    if (socketRef.current) {
+      if (otherUserIdRef.current) {
+        socketRef.current.emit("transcription", {
+          target: otherUserIdRef.current,
+          text,
+          isFinal
+        });
+      }
+      setTranscriptions(prev => [...prev, { sender: socketRef.current?.id || 'me', text, isFinal }]);
+    }
+  };
+
   return {
     localStream,
     remoteStream,
     isConnected,
     connectionStatus,
     error,
+    transcriptions,
+    sendTranscription
   };
 }

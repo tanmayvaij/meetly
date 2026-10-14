@@ -1,6 +1,7 @@
 import { VideoPlayer } from "./VideoPlayer";
 import { useWebRTC } from "../hooks/useWebRTC";
-import { Video, Mic, VideoOff, MicOff, PhoneOff, Copy } from "lucide-react";
+import { useSpeechRecognition } from "../hooks/useSpeechRecognition";
+import { Video, Mic, VideoOff, MicOff, PhoneOff, Copy, MessageSquareText, Captions } from "lucide-react";
 import { Button } from "./ui/button";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -11,10 +12,15 @@ interface CallRoomProps {
 }
 
 export function CallRoom({ roomId, onLeave }: CallRoomProps) {
-  const { localStream, remoteStream, isConnected, connectionStatus, error } = useWebRTC(roomId);
+  const { localStream, remoteStream, isConnected, connectionStatus, error, transcriptions, sendTranscription } = useWebRTC(roomId);
   
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [audioEnabled, setAudioEnabled] = useState(true);
+  const [showSidebar, setShowSidebar] = useState(true);
+
+  const { isListening, toggleListening, interimTranscript, isSupported } = useSpeechRecognition((text) => {
+    sendTranscription(text);
+  }, true);
 
   const toggleVideo = () => {
     if (localStream) {
@@ -44,11 +50,40 @@ export function CallRoom({ roomId, onLeave }: CallRoomProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 w-full relative overflow-hidden">
+    <div className="flex flex-col md:flex-row h-full bg-gray-900 w-full relative overflow-hidden">
+      
+      {/* Sidebar for Transcriptions */}
+      {showSidebar && (
+        <div className="w-full md:w-80 h-1/3 md:h-full bg-gray-950 border-b md:border-b-0 md:border-r border-gray-800 flex flex-col flex-shrink-0 z-30 shadow-2xl relative">
+          <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-950/80 backdrop-blur sticky top-0">
+             <h3 className="text-gray-200 font-semibold flex items-center gap-2"><Captions className="w-4 h-4 text-emerald-400"/> Live Captions</h3>
+             <button onClick={toggleListening} className={`text-xs px-2 py-1 rounded-md font-medium transition-colors cursor-pointer ${isListening ? 'bg-emerald-500/20 text-emerald-400' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                {isListening ? 'Listening' : 'Start'}
+             </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+             {transcriptions.map((t, i) => (
+               <div key={i} className={`flex flex-col ${t.sender === 'me' ? 'items-end' : 'items-start'}`}>
+                 <span className="text-[10px] text-gray-500 font-medium mb-1">{t.sender === 'me' ? 'You' : 'Remote Peer'}</span>
+                 <div className={`px-3 py-2 rounded-2xl text-sm max-w-[90%] shadow-sm ${t.sender === 'me' ? 'bg-indigo-600 text-white rounded-tr-sm' : 'bg-gray-800 text-gray-200 rounded-tl-sm'}`}>
+                   {t.text}
+                 </div>
+               </div>
+             ))}
+             {isListening && interimTranscript && (
+               <div className="flex flex-col items-end opacity-60">
+                 <span className="text-[10px] text-gray-500 font-medium mb-1">You</span>
+                 <div className="px-3 py-2 rounded-2xl text-sm max-w-[90%] bg-indigo-600/80 text-white rounded-tr-sm italic">
+                   {interimTranscript}
+                 </div>
+               </div>
+             )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Video Area */}
       <div className="flex-1 overflow-hidden flex flex-col relative">
-        
-
-
         {/* Video Area (Main Speaker + PiP) */}
         <div className="flex-1 relative bg-gray-900 overflow-hidden">
           {/* Remote Video (Full Screen) */}
@@ -100,6 +135,18 @@ export function CallRoom({ roomId, onLeave }: CallRoomProps) {
             >
               {audioEnabled ? <Mic className="w-4 h-4 sm:w-5 sm:h-5" /> : <MicOff className="w-4 h-4 sm:w-5 sm:h-5" />}
             </Button>
+            
+            {isSupported && (
+              <Button
+                variant={showSidebar ? "default" : "secondary"}
+                size="icon"
+                className={`rounded-full w-10 h-10 sm:w-12 sm:h-12 transition-all shrink-0 ${showSidebar ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'}`}
+                onClick={() => setShowSidebar(!showSidebar)}
+                title="Toggle Captions"
+              >
+                <MessageSquareText className="w-4 h-4 sm:w-5 sm:h-5" />
+              </Button>
+            )}
             
             <div className="w-px h-6 sm:h-8 bg-gray-200 mx-1 sm:mx-2 shrink-0"></div>
             

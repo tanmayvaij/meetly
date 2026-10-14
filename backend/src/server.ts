@@ -65,6 +65,13 @@ io.on("connection", (socket) => {
     });
   });
 
+  socket.on("transcription", (payload) => {
+    io.to(payload.target).emit("transcription", {
+      text: payload.text,
+      sender: socket.id
+    });
+  });
+
   socket.on("disconnecting", () => {
     const roomsArray = Array.from(socket.rooms);
     roomsArray.forEach((roomId) => {
